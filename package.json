@@ -1,0 +1,35 @@
+{
+	"name": "hafas-generate-gtfs",
+	"description": "Generate GTFS dumps from HAFAS endpoints.",
+	"version": "1.0.0",
+	"main": "index.js",
+	"files": [
+		"index.js",
+		"lib",
+		"example.js"
+	],
+	"keywords": [
+		"public transport",
+		"transit",
+		"gtfs",
+		"hafas"
+	],
+	"author": "Jannis R <mail@jannisr.de>",
+	"homepage": "https://github.com/derhuerst/hafas-generate-gtfs",
+	"repository": "derhuerst/hafas-generate-gtfs",
+	"bugs": "https://github.com/derhuerst/hafas-generate-gtfs/issues",
+	"license": "ISC",
+	"engines": {
+		"node": ">=10"
+	},
+	"dependencies": {
+	},
+	"devDependencies": {
+		"tap-min": "^2.0.0",
+		"tape": "^4.13.0"
+	},
+	"scripts": {
+		"test": "env NODE_ENV=dev node test.js | tap-min",
+		"prepublishOnly": "npm test"
+	}
+}
