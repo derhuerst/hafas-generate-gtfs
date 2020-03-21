@@ -3,6 +3,7 @@
 const {ok} = require('assert')
 const findStations = require('hafas-find-stations')
 const debug = require('debug')('hafas-generate-gtfs')
+const PQueue = require('p-queue').default
 const createCollectDeps = require('hafas-collect-departures-at')
 const findDepsDurationLimit = require('./lib/find-departures-duration-limit')
 
@@ -19,6 +20,10 @@ const isValidDep = (dep) => {
 
 // todo: progress estimation
 const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
+	if ('function' !== typeof hafas.trip) {
+		throw new Error('invalid HAFAS client: .trip is not a function')
+	}
+
 	let {
 		begin, duration,
 		// todo: products filter?
@@ -38,27 +43,43 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 	const durStep = await findDepsDurationLimit(hafas, stations[0])
 	debug('duration step', durStep)
 
-	const onDep = (dep, station) => {
-		// todo
-		console.log(JSON.stringify([dep, station]))
+	const queue = new PQueue({
+		concurrency,
+		// todo: timeout & throwOnTimeout
+		// todo: intervalCap & interval?
+	})
+
+	const trips = new Map() // by trip ID
+	const fetchTrip = (dep, station) => async () => {
+		const lineName = dep.line && dep.line.name || 'foo'
+		trips.set(dep.tripId, await hafas.trip(dep.tripId, lineName))
 	}
 
 	const end = begin + duration
-	const collectDeps = createCollectDeps(hafas.departures, {}, durStep)
-	for (const station of stations) {
+	const collectDeps = createCollectDeps(hafas.departures, {
+		includeRelatedStations: false,
+		remarks: false,
+	}, durStep)
+	const collectDepsAt = (station) => async () => {
 		debug('fetching departures', station.id, station.name)
 		for await (let deps of collectDeps(station.id, begin)) {
 			deps = deps
 			.filter(isValidDep)
 			.sort((a, b) => new Date(a.plannedWhen) - new Date(b.plannedWhen))
-			deps.forEach(dep => onDep(dep, station))
 
-			const lastWhen = +new Date(deps[deps.length - 1].plannedWhen)
+			for (const dep of deps) {
+				if (trips.has(dep.tripId)) continue
+				queue.add(fetchTrip(dep, station))
+			}
+
 			if (deps.length === 0) {
+				// todo: try for a little longer
 				debug('0 departures', deps) // todo: log `when`
 				break
-			} else if (lastWhen >= end) break
-			else debug('progress', ((lastWhen - begin) / duration).toFixed(3))
+			}
+			const lastWhen = +new Date(deps[deps.length - 1].plannedWhen)
+			if (lastWhen >= end) break
+			debug('progress', ((lastWhen - begin) / duration).toFixed(3))
 		}
 	}
 	// todo

@@ -9,6 +9,12 @@
 [![chat with me on Gitter](https://img.shields.io/badge/chat%20with%20me-on%20gitter-512e92.svg)](https://gitter.im/derhuerst)
 [![support me on Patreon](https://img.shields.io/badge/support%20me-on%20patreon-fa7664.svg)](https://patreon.com/derhuerst)
 
+Given a [`hafas-client@5`](https://github.com/public-transport/hafas-client/tree/5)-compatible HAFAS client, a time frame, and a bounding box or [`GeoJSON`](https://geojson.org) shape, `hafas-generate-gtfs` tries to build a GTFS feed for the area:
+
+1. Finds all stations in the area.
+2. Fetches all departures at these stations within the time frame.
+3. Fetches the trip for each departure.
+
 
 ## Installation
 
