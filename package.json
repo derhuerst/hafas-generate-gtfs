@@ -23,8 +23,12 @@
 		"node": ">=10"
 	},
 	"dependencies": {
+		"debug": "^4.1.1",
+		"hafas-collect-departures-at": "^3.1.0",
+		"hafas-find-stations": "^2.0.0"
 	},
 	"devDependencies": {
+		"bvg-hafas": "^3.0.0",
 		"tap-min": "^2.0.0",
 		"tape": "^4.13.0"
 	},
