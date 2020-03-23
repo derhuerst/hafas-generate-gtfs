@@ -26,7 +26,7 @@
 		"debug": "^4.1.1",
 		"hafas-collect-departures-at": "^3.1.0",
 		"hafas-find-stations": "^2.0.0",
-		"p-queue": "^6.3.0"
+		"queue": "^6.0.1"
 	},
 	"devDependencies": {
 		"bvg-hafas": "^3.0.0",

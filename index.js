@@ -25,11 +25,12 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 	}
 
 	let {
-		begin, duration,
+		begin, duration, concurrency,
 		// todo: products filter?
 	} = {
 		begin: Date.now(),
 		duration: 30 * DAY,
+		concurrency: 4,
 		...opt
 	}
 	begin = +new Date(begin)
@@ -43,10 +44,9 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 	const durStep = await findDepsDurationLimit(hafas, stations[0])
 	debug('duration step', durStep)
 
-	const queue = new PQueue({
+	const queue = new Queue({
 		concurrency,
-		// todo: timeout & throwOnTimeout
-		// todo: intervalCap & interval?
+		// todo: timeout
 	})
 
 	const trips = new Map() // by trip ID
@@ -55,11 +55,15 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 		trips.set(dep.tripId, await hafas.trip(dep.tripId, lineName))
 	}
 
-	const end = begin + duration
-	const collectDeps = createCollectDeps(hafas.departures, {
-		includeRelatedStations: false,
+	const collectOps = {
 		remarks: false,
-	}, durStep)
+	}
+	if (hafas.profile.departuresStbFltrEquiv !== false) {
+		collectOps.includeRelatedStations = false
+	}
+	const collectDeps = createCollectDeps(hafas.departures, collectOps, durStep)
+
+	const end = begin + duration
 	const collectDepsAt = (station) => async () => {
 		debug('fetching departures', station.id, station.name)
 		for await (let deps of collectDeps(station.id, begin)) {
@@ -69,7 +73,7 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 
 			for (const dep of deps) {
 				if (trips.has(dep.tripId)) continue
-				queue.add(fetchTrip(dep, station))
+				queue.push(fetchTrip(dep, station))
 			}
 
 			if (deps.length === 0) {
@@ -79,9 +83,26 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			}
 			const lastWhen = +new Date(deps[deps.length - 1].plannedWhen)
 			if (lastWhen >= end) break
-			debug('progress', ((lastWhen - begin) / duration).toFixed(3))
 		}
 	}
+	for (const station of stations) {
+		queue.push(collectDepsAt(station))
+	}
+
+	let done = 0
+	queue.on('success', () => {
+		done++
+		debug('progress', (1 - queue.length / (queue.length + done)).toFixed(3))
+	})
+	queue.start()
+	await new Promise((resolve, reject) => {
+		queue.once('error', (err) => {
+			reject(err)
+			queue.end(err)
+		})
+		queue.once('success', () => resolve())
+	})
+
 	// todo
 }
 
