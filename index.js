@@ -3,7 +3,7 @@
 const {ok} = require('assert')
 const findStations = require('hafas-find-stations')
 const debug = require('debug')('hafas-generate-gtfs')
-const PQueue = require('p-queue').default
+const Queue = require('queue')
 const createCollectDeps = require('hafas-collect-departures-at')
 const findDepsDurationLimit = require('./lib/find-departures-duration-limit')
 
@@ -49,10 +49,106 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 		// todo: timeout
 	})
 
-	const trips = new Map() // by trip ID
+	// todo: agency
+	// todo: fare_rules, fare_attributes
+	// todo: shapes
+	// todo: frequencies
+	// todo: pathways
+	// todo: levels
+	// todo: feed_info
+	// todo: translations
+	// todo: attributions
+
+	const stops = new Map()
+	const routes = new Map()
+	const trips = []
+	const stop_times = []
+
+	const formatStop = (stop) => {
+		const f = {
+			stop_id: stop.id,
+			stop_name: stop.name, // todo: normalize
+			stop_lat: stop.location.latitude,
+			stop_lon: stop.location.longitude,
+			location_type: 0, parent_station: null,
+		}
+		if (stop.station) {
+			f.location_type = 1
+			f.parent_station = stop.station.id
+		}
+		return f
+	}
+	const addStop = (stop) => {
+		if (!stops.has(stop.id)) {
+			stops.set(stop.id, formatStop(stop))
+		}
+		if (stop.station && !stops.has(stop.station.id)) {
+			stops.set(stop.station.id, formatStop(stop.station))
+		}
+	}
+
+	const routeTypeByProduct = Object.assign(Object.create(null), {
+		suburban: 0,
+		subway: 1,
+		tram: 0,
+		bus: 3,
+		ferry: 4,
+		express: 2,
+		regional: 2,
+	})
+	const addLine = (line) => {
+		if (routes.has(line.id)) return;
+		routes.set(line.id, {
+			route_id: line.id,
+			// todo: agency_id
+			route_short_name: line.name,
+			route_type: routeTypeByProduct[line.product],
+			// todo: route_color
+		})
+	}
+
+	const addTrip = (trip) => {
+		trips.push({
+			route_id: null, // todo
+			service_id: null, // todo
+			trip_id: trip.id,
+			trip_headsign: trip.direction,
+			direction_id: null, // todo
+			// todo: shape_id
+			// todo: wheelchair_accessible, bikes_allowed
+		})
+	}
+
+	const addStopover = (stopover, trip, i) => {
+		stop_times.push({
+			trip_id: trip.id,
+			arrival_time: stopover.plannedArrival,
+			departure_time: stopover.plannedDeparture,
+			stop_id: stopover.stop.id,
+			stop_sequence: i,
+			stop_headsign: trip.direction,
+			// todo: pickup_type, drop_off_type
+			// todo: shape_dist_traveled
+			timepoint: 1, // "Times are considered exact."
+		})
+	}
+
 	const fetchTrip = (dep, station) => async () => {
 		const lineName = dep.line && dep.line.name || 'foo'
-		trips.set(dep.tripId, await hafas.trip(dep.tripId, lineName))
+		const trip = await hafas.trip(dep.tripId, lineName)
+		if (!trip.line) {
+			debug('invalid trip', trip)
+			return;
+		}
+
+		// if (trip.line.operator) addOperator(trip.line.operator)
+		addLine(trip.line)
+		addTrip(trip)
+		for (let i = 0; i < trip.stopovers.length; i++) {
+			const stopover = trip.stopovers[i]
+			addStop(stopover.stop)
+			addStopover(stopover, trip, i)
+		}
 	}
 
 	const collectOps = {
@@ -92,7 +188,7 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 	let done = 0
 	queue.on('success', () => {
 		done++
-		debug('progress', (1 - queue.length / (queue.length + done)).toFixed(3))
+		debug('progress', done, '/', queue.length + done)
 	})
 	queue.start()
 	await new Promise((resolve, reject) => {
@@ -100,7 +196,7 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			reject(err)
 			queue.end(err)
 		})
-		queue.once('success', () => resolve())
+		queue.once('end', () => resolve())
 	})
 
 	// todo
