@@ -30,6 +30,8 @@
 	},
 	"devDependencies": {
 		"bvg-hafas": "^3.0.0",
+		"cached-hafas-client": "^2.1.2",
+		"redis": "^3.0.2",
 		"tap-min": "^2.0.0",
 		"tape": "^4.13.0"
 	},

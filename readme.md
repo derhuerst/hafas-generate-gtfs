@@ -29,6 +29,8 @@ npm install hafas-generate-gtfs
 todo
 ```
 
+I recommend you to use this package with a [caching](https://github.com/derhuerst/cached-hafas-client) HAFAS client.
+
 
 ## Contributing
 

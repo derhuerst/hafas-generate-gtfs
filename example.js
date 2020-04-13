@@ -3,6 +3,9 @@
 const createHafasClient = require('hafas-client')
 const withThrottling = require('hafas-client/throttle')
 const bvgProfile = require('hafas-client/p/bvg')
+const {createClient: createRedis} = require('redis')
+const createRedisStore = require('cached-hafas-client/stores/redis')
+const withCache = require('cached-hafas-client')
 const generateGtfs = require('.')
 
 const centerOfBerlin = {
@@ -22,7 +25,7 @@ const centerOfBerlin = {
 }
 
 // todo: with retrying
-const hafas = createHafasClient(
+const bvgHafas = createHafasClient(
 	withThrottling(bvgProfile, 5, 1000), // 5/s
 	'hafas-generate-gtfs:example',
 )
@@ -36,9 +39,12 @@ const createWritable = (filename) => {
 }
 
 ;(async () => {
+	const store = createRedisStore(createRedis())
+	const hafas = await withCache(bvgHafas, store, 60 * 60 * 1000)
+
 	await generateGtfs(hafas, createWritable, centerOfBerlin, {
 		begin: new Date('2020-06-01T03:00+02:00'),
-		duration: 2 * 24 * 60 * 60 * 1000,
+		duration: 2 * 60 * 60 * 1000,
 	})
 })()
 .catch((err) => {
