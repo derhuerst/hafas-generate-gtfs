@@ -49,7 +49,6 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 		// todo: timeout
 	})
 
-	// todo: agency
 	// todo: fare_rules, fare_attributes
 	// todo: shapes
 	// todo: frequencies
@@ -59,10 +58,19 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 	// todo: translations
 	// todo: attributions
 
+	const agencies = new Map()
 	const stops = new Map()
 	const routes = new Map()
 	const trips = []
 	const stop_times = []
+
+	const addAgency = (dep) => {
+		const a = {
+			agency_id: String(agencies.size+1),
+			agency_name: dep.line.operator.name
+		}
+		agencies.set(String(agencies.size+1), a)
+	}
 
 	const formatStop = (stop) => {
 		const f = {
@@ -100,7 +108,9 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 		if (routes.has(line.id)) return;
 		routes.set(line.id, {
 			route_id: line.id,
-			// todo: agency_id
+			// leave this temporary blank, see e.g.
+			// https://www.data.wien.gv.at/txt/wrlinien-gtfs-routes.txt
+			agency_id: "",
 			route_short_name: line.name,
 			route_type: routeTypeByProduct[line.product],
 			// todo: route_color
@@ -168,8 +178,10 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			.sort((a, b) => new Date(a.plannedWhen) - new Date(b.plannedWhen))
 
 			for (const dep of deps) {
-				if (trips.has(dep.tripId)) continue
-				queue.push(fetchTrip(dep, station))
+				if (!trips.has(dep.tripId))
+					queue.push(fetchTrip(dep, station))
+				if (!agencies.has(dep.line.operator.name))
+					queue.push(addAgency(dep))
 			}
 
 			if (deps.length === 0) {
