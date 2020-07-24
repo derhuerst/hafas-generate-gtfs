@@ -110,7 +110,7 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			route_id: line.id,
 			// leave this temporary blank, see e.g.
 			// https://www.data.wien.gv.at/txt/wrlinien-gtfs-routes.txt
-			agency_id: "",
+			// todo: agency_id
 			route_short_name: line.name,
 			route_type: routeTypeByProduct[line.product],
 			// todo: route_color
@@ -180,7 +180,7 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			for (const dep of deps) {
 				if (!trips.has(dep.tripId))
 					queue.push(fetchTrip(dep, station))
-				if (!agencies.has(dep.line.operator.name))
+				if (!agencies.has(dep.line.operator.id))
 					queue.push(addAgency(dep))
 			}
 
