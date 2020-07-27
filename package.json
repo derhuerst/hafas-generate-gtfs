@@ -12,7 +12,8 @@
 		"public transport",
 		"transit",
 		"gtfs",
-		"hafas"
+		"hafas",
+		"hafas-client"
 	],
 	"author": "Jannis R <mail@jannisr.de>",
 	"homepage": "https://github.com/derhuerst/hafas-generate-gtfs",

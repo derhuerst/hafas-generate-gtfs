@@ -178,8 +178,9 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 			.sort((a, b) => new Date(a.plannedWhen) - new Date(b.plannedWhen))
 
 			for (const dep of deps) {
-				if (!trips.has(dep.tripId))
+				if (!trips.some(t => t.trip_id === dep.tripId)) {
 					queue.push(fetchTrip(dep, station))
+				}
 				if (!agencies.has(dep.line.operator.id))
 					queue.push(addAgency(dep))
 			}
@@ -211,7 +212,13 @@ const generateGtfs = async (hafas, createWritable, serviceArea, opt = {}) => {
 		queue.once('end', () => resolve())
 	})
 
-	// todo
+	return {
+		agencies,
+		stops,
+		routes,
+		trips,
+		stop_times,
+	}
 }
 
 module.exports = generateGtfs
