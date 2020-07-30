@@ -5,7 +5,7 @@ const findStations = require('hafas-find-stations')
 const debug = require('debug')('hafas-generate-gtfs')
 const Queue = require('queue')
 const createCollectDeps = require('hafas-collect-departures-at')
-const findDepsDurationLimit = require('./lib/find-departures-duration-limit')
+const findDepsDurationLimit = require('hafas-find-departures-duration-limit')
 
 const DAY = 24 * 60 * 60 * 1000
 
